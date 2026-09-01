@@ -30,12 +30,27 @@ function initCropUI(fullScreenImageUrl, mode) {
   document.body.appendChild(overlay);
 
   let isDrawing = false;
-  let startX, startY, currentX, currentY;
+  let startX = 0, startY = 0, currentX = 0, currentY = 0;
+
+  // Закрыццё па клавішы Escape
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      cleanup();
+    }
+  };
+  window.addEventListener('keydown', handleKeyDown);
+
+  function cleanup() {
+    window.removeEventListener('keydown', handleKeyDown);
+    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+  }
 
   overlay.addEventListener('mousedown', (e) => {
     isDrawing = true;
     startX = e.clientX;
     startY = e.clientY;
+    currentX = e.clientX; // Выпраўленне: ініцыялізацыя пачатковых каардынат
+    currentY = e.clientY;
     selection.style.left = startX + 'px';
     selection.style.top = startY + 'px';
     selection.style.width = '0px';
@@ -54,8 +69,9 @@ function initCropUI(fullScreenImageUrl, mode) {
   });
 
   overlay.addEventListener('mouseup', async () => {
+    if (!isDrawing) return;
     isDrawing = false;
-    
+
     const rect = {
       x: Math.min(startX, currentX),
       y: Math.min(startY, currentY),
@@ -63,7 +79,7 @@ function initCropUI(fullScreenImageUrl, mode) {
       h: Math.abs(currentY - startY)
     };
 
-    document.body.removeChild(overlay);
+    cleanup();
 
     if (rect.w < 10 || rect.h < 10) return;
 
@@ -73,10 +89,10 @@ function initCropUI(fullScreenImageUrl, mode) {
       canvas.width = rect.w;
       canvas.height = rect.h;
       const ctx = canvas.getContext('2d');
-      
+
       const dpr = window.devicePixelRatio || 1;
       ctx.drawImage(img, rect.x * dpr, rect.y * dpr, rect.w * dpr, rect.h * dpr, 0, 0, rect.w, rect.h);
-      
+
       const croppedBase64 = canvas.toDataURL('image/png');
       await processAndCopyData(croppedBase64, mode);
     };
@@ -86,31 +102,28 @@ function initCropUI(fullScreenImageUrl, mode) {
 
 async function processAndCopyData(imageBase64, mode) {
   const currentUrl = window.location.href;
-  
+
   try {
     const res = await fetch(imageBase64);
     const imageBlob = await res.blob();
     const textBlob = new Blob([currentUrl], { type: 'text/plain' });
 
-    let clipboardData = {
-      'text/plain': textBlob,
-      'image/png': imageBlob
-    };
+    const htmlContent = mode === 'combined' 
+      ? `<img src="${imageBase64}"><br><a href="${encodeURI(currentUrl)}">link</a>`
+      : `<img src="${imageBase64}">`;
 
-    if (mode === 'combined') {
-      const htmlContent = `<img src="${imageBase64}"><br><a href="${currentUrl}">link</a>`;
-      clipboardData['text/html'] = new Blob([htmlContent], { type: 'text/html' });
-    } else {
-      const htmlContent = `<img src="${imageBase64}">`;
-      clipboardData['text/html'] = new Blob([htmlContent], { type: 'text/html' });
-    }
+    const clipboardData = {
+      'text/plain': textBlob,
+      'image/png': imageBlob,
+      'text/html': new Blob([htmlContent], { type: 'text/html' })
+    };
 
     const clipboardItem = new ClipboardItem(clipboardData);
     await navigator.clipboard.write([clipboardItem]);
 
     const msg = mode === 'combined' 
-      ? "✅ Скрыншот + link у буферы!" 
-      : "✅ Скрыншот (Cmd+V) і спасылка (Shift+Cmd+V) у буферы!";
+      ? "✅ Скрыншот + спасылка ў буферы!" 
+      : "✅ Скрыншот у буферы!";
     showToast(msg);
   } catch (err) {
     showToast("❌ Памылка капіявання", true);
