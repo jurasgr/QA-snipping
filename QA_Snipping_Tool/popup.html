@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 240px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 12px;
+      margin: 0;
+      background: #f9f9f9;
+    }
+    .title {
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: #333;
+    }
+    label {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      color: #444;
+      background: white;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+    }
+    label:hover {
+      border-color: #aaa;
+    }
+    input {
+      margin-right: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="title">Рэжым капіявання:</div>
+  <label>
+    <input type="radio" name="mode" value="combined" checked>
+    Скрыншот + link (Cmd+V)
+  </label>
+  <label>
+    <input type="radio" name="mode" value="separate">
+    Скрыншот (Cmd+V) / Спасылка (Shift+Cmd+V)
+  </label>
+  <script src="popup.js"></script>
+</body>
+</html>
