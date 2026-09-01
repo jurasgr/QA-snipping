@@ -40,7 +40,7 @@ A lightweight, non-intrusive Chrome Extension (Manifest V3) designed for QA engi
    * Абярыце папку з файламi пашырэння.
 4. **Наладзьце клавішы:** 
    * Адкрыйце `chrome://extensions/shortcuts` у новай укладцы.
-   * Для пункта **«Запусціць QA Snipping Tool»** прызначце комбінацыю `Cmd + Shift + E` (або іншую зручную).
+   * Для пункта **«Запусціць QA Snipping Tool»** прызначце комбінацыю `Cmd + Shift + W` (або іншую зручную).
 
 ---
 ## 📁 Project Structure
