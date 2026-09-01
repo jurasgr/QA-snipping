@@ -11,7 +11,6 @@ A lightweight, non-intrusive Chrome Extension (Manifest V3) designed for QA engi
 * **Two Operating Modes:**
   * **Combined Mode (`Cmd+V`):** Pastes the cropped screenshot and a hyperlink labeled `link` in a single paste action.
   * **Separate Mode:** Pastes the image via `Cmd+V` and the raw URL string via `Shift+Cmd+V`.
-* **High-DPI Support:** Automatically scales cropped selection coordinates based on `window.devicePixelRatio` for Retina and 4K displays.
 * **Non-Blocking UI:** Subtle overlay during selection and auto-dismissing toast notifications upon capture.
 * **Privacy Focused:** 100% local execution with zero network payload transfers.
 
