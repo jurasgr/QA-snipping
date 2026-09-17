@@ -106,31 +106,38 @@ async function processAndCopyData(imageBase64, mode) {
   try {
     const res = await fetch(imageBase64);
     const imageBlob = await res.blob();
-    const textBlob = new Blob([currentUrl], { type: 'text/plain' });
+    
+    let clipboardData = {};
 
-    const htmlContent = mode === 'combined' 
-      ? `<img src="${imageBase64}"><br><a href="${encodeURI(currentUrl)}">link</a>`
-      : `<img src="${imageBase64}">`;
-
-    const clipboardData = {
-      'text/plain': textBlob,
-      'image/png': imageBlob,
-      'text/html': new Blob([htmlContent], { type: 'text/html' })
-    };
+    if (mode === 'combined') {
+      // Рэжым са спасылкай (для Jira, Confluence, Slack, Google Docs)
+      const textBlob = new Blob([currentUrl], { type: 'text/plain' });
+      const htmlContent = `<img src="${imageBase64}"><br><a href="${encodeURI(currentUrl)}">link</a>`;
+      
+      clipboardData = {
+        'text/plain': textBlob,
+        'image/png': imageBlob,
+        'text/html': new Blob([htmlContent], { type: 'text/html' })
+      };
+    } else {
+      // Чысты рэжым выявы (спецыяльна для Google Sheets, Figma, Photoshop)
+      clipboardData = {
+        'image/png': imageBlob
+      };
+    }
 
     const clipboardItem = new ClipboardItem(clipboardData);
     await navigator.clipboard.write([clipboardItem]);
 
     const msg = mode === 'combined' 
       ? "✅ Скрыншот + спасылка ў буферы!" 
-      : "✅ Скрыншот у буферы!";
+      : "✅ Скрыншот у буферы (чыстая выява)!";
     showToast(msg);
   } catch (err) {
     showToast("❌ Памылка капіявання", true);
     console.error(err);
   }
 }
-
 function showToast(message, isError = false) {
   const toast = document.createElement('div');
   toast.innerText = message;
