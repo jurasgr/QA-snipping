@@ -32,7 +32,6 @@ function initCropUI(fullScreenImageUrl, mode) {
   let isDrawing = false;
   let startX = 0, startY = 0, currentX = 0, currentY = 0;
 
-  // Закрыццё па клавішы Escape
   const handleKeyDown = (e) => {
     if (e.key === 'Escape') {
       cleanup();
@@ -49,7 +48,7 @@ function initCropUI(fullScreenImageUrl, mode) {
     isDrawing = true;
     startX = e.clientX;
     startY = e.clientY;
-    currentX = e.clientX; // Выпраўленне: ініцыялізацыя пачатковых каардынат
+    currentX = e.clientX;
     currentY = e.clientY;
     selection.style.left = startX + 'px';
     selection.style.top = startY + 'px';
@@ -68,7 +67,7 @@ function initCropUI(fullScreenImageUrl, mode) {
     selection.style.height = Math.abs(currentY - startY) + 'px';
   });
 
-  overlay.addEventListener('mouseup', async () => {
+  overlay.addEventListener('mouseup', () => {
     if (!isDrawing) return;
     isDrawing = false;
 
@@ -84,7 +83,7 @@ function initCropUI(fullScreenImageUrl, mode) {
     if (rect.w < 10 || rect.h < 10) return;
 
     const img = new Image();
-    img.onload = async () => {
+    img.onload = () => {
       const canvas = document.createElement('canvas');
       canvas.width = rect.w;
       canvas.height = rect.h;
@@ -93,51 +92,86 @@ function initCropUI(fullScreenImageUrl, mode) {
       const dpr = window.devicePixelRatio || 1;
       ctx.drawImage(img, rect.x * dpr, rect.y * dpr, rect.w * dpr, rect.h * dpr, 0, 0, rect.w, rect.h);
 
-      const croppedBase64 = canvas.toDataURL('image/png');
-      await processAndCopyData(croppedBase64, mode);
+      // Сінхроннае стварэнне Base64 і Blob без асінхронных запінак
+      const imageBase64 = canvas.toDataURL('image/png');
+      const imageBlob = dataURLtoBlob(imageBase64);
+
+      processAndCopyData(imageBase64, imageBlob, mode);
     };
     img.src = fullScreenImageUrl;
   });
 }
 
-async function processAndCopyData(imageBase64, mode) {
+// Хуткая сінхронная канвертацыя Base64 у Blob
+function dataURLtoBlob(dataurl) {
+  const arr = dataurl.split(',');
+  const mime = arr[0].match(/:(.*?);/)[1];
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new Blob([u8arr], { type: mime });
+}
+
+function processAndCopyData(imageBase64, imageBlob, mode) {
   const currentUrl = window.location.href;
+  const isGoogleSheets = currentUrl.includes('docs.google.com/spreadsheets');
 
   try {
-    const res = await fetch(imageBase64);
-    const imageBlob = await res.blob();
-    
     let clipboardData = {};
 
-    if (mode === 'combined') {
-      // Рэжым са спасылкай (для Jira, Confluence, Slack, Google Docs)
-      const textBlob = new Blob([currentUrl], { type: 'text/plain' });
-      const htmlContent = `<img src="${imageBase64}"><br><a href="${encodeURI(currentUrl)}">link</a>`;
-      
-      clipboardData = {
-        'text/plain': textBlob,
-        'image/png': imageBlob,
-        'text/html': new Blob([htmlContent], { type: 'text/html' })
-      };
-    } else {
-      // Чысты рэжым выявы (спецыяльна для Google Sheets, Figma, Photoshop)
+    if (isGoogleSheets) {
+      // Для Google Sheets пакідаем ТОЛЬКІ выяву, каб Cmd+V гарантавана ўстаўляў малюнак
       clipboardData = {
         'image/png': imageBlob
+      };
+    } else if (mode === 'combined') {
+      // РЭЖЫМ 1:
+      // Cmd+V       -> HTML (Скрыншот + клікабельнае "link")
+      // Shift+Cmd+V -> Plain Text (чыстая тэкставая спасылка)
+      const textBlob = new Blob([currentUrl], { type: 'text/plain' });
+      const htmlContent = `<img src="${imageBase64}"><br><a href="${encodeURI(currentUrl)}">link</a>`;
+      const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+
+      clipboardData = {
+        'image/png': imageBlob,
+        'text/html': htmlBlob,
+        'text/plain': textBlob
+      };
+    } else {
+      // РЭЖЫМ 2:
+      // Cmd+V       -> Скрыншот (праграмы выбіраюць image/png, бо няма HTML)
+      // Shift+Cmd+V -> Спасылка (прымусова бярэ text/plain)
+      const textBlob = new Blob([currentUrl], { type: 'text/plain' });
+
+      clipboardData = {
+        'image/png': imageBlob,
+        'text/plain': textBlob
       };
     }
 
     const clipboardItem = new ClipboardItem(clipboardData);
-    await navigator.clipboard.write([clipboardItem]);
+    
+    navigator.clipboard.write([clipboardItem]).then(() => {
+      const msg = isGoogleSheets
+        ? "✅ Скрыншот у буферы (аўтаматам для Google Sheets)!"
+        : (mode === 'combined'
+            ? "✅ Рэжым 1: Cmd+V (скрыншот + link) | Shift+Cmd+V (URL)"
+            : "✅ Рэжым 2: Cmd+V (скрыншот) | Shift+Cmd+V (URL)");
+      showToast(msg);
+    }).catch((err) => {
+      console.error("Памылка запісу ў буфер:", err);
+      showToast("❌ Памылка капіявання", true);
+    });
 
-    const msg = mode === 'combined' 
-      ? "✅ Скрыншот + спасылка ў буферы!" 
-      : "✅ Скрыншот у буферы (чыстая выява)!";
-    showToast(msg);
   } catch (err) {
+    console.error("Памылка стварэння ClipboardItem:", err);
     showToast("❌ Памылка капіявання", true);
-    console.error(err);
   }
 }
+
 function showToast(message, isError = false) {
   const toast = document.createElement('div');
   toast.innerText = message;
